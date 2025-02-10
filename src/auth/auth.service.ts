@@ -1,12 +1,15 @@
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
-import { Injectable } from '@nestjs/common';
 import { UserService } from '../user/user.service';
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly configService: ConfigService, // injecting config service
+  ) {}
 
   async signup(username: string, email: string, password: string) {
     const existingUser = await this.userService.findByEmail(email);
@@ -44,9 +47,18 @@ export class AuthService {
       );
     }
 
+    // retrieving jwt secret
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
+    if (!jwtSecret) {
+      throw new Error(
+        'JWT secret is not defined in the environment variables.',
+      );
+    }
+
+    // generate token
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      'your-secret-key',
+      jwtSecret,
       { expiresIn: '1h' },
     );
 
